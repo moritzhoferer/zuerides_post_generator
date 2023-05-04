@@ -1,8 +1,3 @@
-"""
-# My first app
-Here's our first attempt at using data to create a table:
-"""
-
 import streamlit as st
 import numpy as np
 import gpxpy
@@ -17,6 +12,11 @@ months = {
 weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 
             'Friday', 'Saturday', 'Sunday']
 
+meeting_points = {'Fork & Bottle parking lot': (0,0),
+                  'Frohburg-/Letzistrasse': (0, 0), 
+                  'Thiwa\'s Cafe, Triemli': (0,0), 
+                  'OIL! petrol station, Fronwaldstrasse': (0,0)}
+
 
 st.title('Post creator for ZüRides 🚴')
 st.header('Input')
@@ -28,11 +28,13 @@ organizers = st.multiselect(
 organizers_str = ','.join(organizers)
 d = st.date_input(
     "What date does the ride take place?",
-    datetime.date.today() + datetime.timedelta(days=1))
+    datetime.date.today() + datetime.timedelta(days=1)
+)
 month = d.month
 month_str = months[month]
 day = d.day
 weekday = weekdays[d.weekday()]
+
 meeting_time = st.time_input('What time do we start?', datetime.time(18,00))
 meeting_time_str = meeting_time.strftime('%H:%M')
 
@@ -54,12 +56,11 @@ if uploaded_files is not None:
 
 meeting_point = st.selectbox(
     'Where do we meet?',
-    ['Fork & Bottle parking lot', 'Frohburg-/Letzistrasse', 
-     'Thiwa\'s Cafe, Triemli', 'OIL! petrol station, Fronwaldstrasse'])
+    meeting_points.keys()
+    )
 
-
-ride_level = '🦵'
-ride_speed = 26
+ride_level = st.radio('Choose your ride level:',['☕️', '🦵','🔥'], index=1)
+ride_speed = st.slider('What is the expected average speed in km/h?', min_value=20, max_value=32, value= 26)
 
 if uploaded_files is not None:
     text = \
@@ -72,4 +73,8 @@ if uploaded_files is not None:
         f'{route_description}\n\nThanks & see you on the road. '
     st.header('Output for copy\'n\'paste to WhatsApp')
     st.code(text, language=None)
+
+    text_short = f'{route_title} @ {meeting_point}'
+    st.header('Output for copy\'n\'paste to submission form')
+    st.code(text_short, language=None)
 
