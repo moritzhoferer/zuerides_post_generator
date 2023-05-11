@@ -79,6 +79,7 @@ if s:
     r = requests.get(f'https://us-central1-my-playground-1f314.cloudfunctions.net/getRoute?id={route_id}')
     gpx = gpxpy.parse(r.text)
 
+    route_title = gpx.name
     route_distance = int(np.ceil(gpx.length_3d()/1000))
     points = [(point.latitude, point.longitude) for track in gpx.tracks for segment in track.segments for point in segment.points]
     if gpx.has_elevations:
@@ -99,7 +100,7 @@ if s:
         datetime.timedelta(hours=route_distance/ride_speed * 1.2 + 0.3)
     sunset_time = datetime.datetime(d.year, d.month, d.day, 20, 00)
     if  return_time > sunset_time: text += light_warning
-    text += f'*{gpx.name}*\n'
+    text += f'*{route_title}*\n'
     text += f'{organizers_str}\n'
     text += f'*Route*: {route_distance}km, {route_elevation_gain}m, {gpx.link}\n'
     text += f'*Ride level*: {ride_level}, ~{ride_speed}km/h\n'
