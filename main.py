@@ -47,10 +47,12 @@ organizers = st.multiselect(
     organizers_list
     )
 organizers_str = ', '.join(sorted(organizers))
+default_date = \
+    (datetime.datetime.now().replace(tzinfo=pytz.timezone('CET')).date() + \
+    datetime.timedelta(days=1)).replace(tzinfo=pytz.timezone('CET')).date()
+
 d = st.date_input(
-    "What date does the ride take place?",
-    datetime.datetime.now().replace(tzinfo=pytz.timezone('CET')).date() + \
-    datetime.timedelta(days=1)
+    "What date does the ride take place?", default_date
 )
 month = d.month
 month_str = months[month]
