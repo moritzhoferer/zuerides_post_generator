@@ -8,6 +8,7 @@ import gpxpy
 import gpxpy.gpx
 from haversine import haversine, Unit
 import datetime
+import pytz
 
 months = {
     1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
@@ -38,7 +39,7 @@ race_disclaimer = "⚠️ No regular ride ⚠️\nThis is not a regular ride. Pa
 
 submission_form_link = 'https://docs.google.com/forms/d/e/1FAIpQLScgY8tIqtNKiD6sRei6LXCvFQL3HSFO481xiV9mzF5-85USiw/viewform'
 
-st.title(f'Post creator for [ZüRides]({submission_form_link}) 🚴')
+st.title(f'Post creator for [ZüRides]({submission_form_link})')
 st.header('Input')
 
 organizers = st.multiselect(
@@ -48,7 +49,8 @@ organizers = st.multiselect(
 organizers_str = ', '.join(sorted(organizers))
 d = st.date_input(
     "What date does the ride take place?",
-    datetime.date.today() + datetime.timedelta(days=1)
+    datetime.datetime.now().replace(tzinfo=pytz.timezone('CET')).date() + \
+    datetime.timedelta(days=1)
 )
 month = d.month
 month_str = months[month]
