@@ -25,7 +25,7 @@ meeting_points = {
     'Frohburg-/Letzistrasse': (47.39252, 8.55045), 
     'Thiwa\'s Cafe, Triemli': (47.36783, 8.49466), 
     'OIL! petrol station, Fronwaldstrasse': (47.41510, 8.51845),
-    'Gravelyard Witikon': (47.36144, 8.60253)
+    'Graveyard Witikon': (47.36144, 8.60253)
 }
 
 organizers_list = list(st.secrets['organizers'].keys())
