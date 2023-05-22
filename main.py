@@ -28,59 +28,66 @@ meeting_points = {
     'Gravelyard Witikon': (47.36144, 8.60253)
 }
 
-organizers_list = [
-    'Alex', 'Andrew', 'Beat', 'Boris', 'Dominic', 'Iris', 'Julius', 'Katja',
-    'Manu', 'Maria', 'Max', 'Moritz', 'Nino', 'Sofia'
-]
+organizers_list = list(st.secrets['organizers'].keys())
 
 light_warning = '🚨 Do not forget to bring lights! 🚨\n\n'
-weather_disclaimer = "⛈️ Watch the forecast ⛈️\nIf the weather conditions are extremely bad, we might cancel the ride.\n\n"
+weather_disclaimer = "⛈️ Watch the forecast ⛈️\nIf the weather forecast gets worse, we cancel the ride.\n\n"
 race_disclaimer = "⚠️ No regular ride ⚠️\nThis is not a regular ride. Participation in the race is at your own risk, ZüRides will not take any responsibility, we just ride to the start and back to Zürich together. If you are unsure or have any questions, please get in touch with the organizers.\n\n"
-
 submission_form_link = 'https://docs.google.com/forms/d/e/1FAIpQLScgY8tIqtNKiD6sRei6LXCvFQL3HSFO481xiV9mzF5-85USiw/viewform'
+
+@st.cache_data
+def get_route(route_id: str) -> gpxpy.gpx.GPX:
+    _r = requests.get(st.secrets['get_route_url'] + route_id)
+    return gpxpy.parse(_r.text)
+
+
+# def preprocess_route(gpx: gpxpy.gpx.GPX) -> dict:
+#     return {}
+
 
 st.title(f'Post creator for [ZüRides]({submission_form_link})')
 st.header('Input')
+with st.form('Input'):
 
-organizers = st.multiselect(
-    'Who organizes the ride',
-    organizers_list
+    default_datetime = datetime.datetime.now() + datetime.timedelta(days=1)
+    default_date = default_datetime.astimezone(pytz.timezone('CET')).date()
+
+    d = st.date_input(
+        "What date does the ride take place?", default_date
     )
-organizers_str = ', '.join(sorted(organizers))
-default_date = datetime.datetime.now() + datetime.timedelta(days=1)
-default_date = default_date.replace(tzinfo=pytz.timezone('CET')).date()
+    month = d.month
+    month_str = months[month]
+    day = d.day
+    weekday = weekdays[d.weekday()]
 
-d = st.date_input(
-    "What date does the ride take place?", default_date
-)
-month = d.month
-month_str = months[month]
-day = d.day
-weekday = weekdays[d.weekday()]
+    meeting_time = st.time_input(
+        'What time do we start?', 
+        datetime.time(10, 00) if weekday in ['Saturday', 'Sunday'] else datetime.time(18, 00))
+    meeting_time_str = meeting_time.strftime('%H:%M')
 
-meeting_time = st.time_input(
-    'What time do we start?', 
-    datetime.time(10, 00) if weekday in ['Saturday', 'Sunday'] else datetime.time(18, 00))
-meeting_time_str = meeting_time.strftime('%H:%M')
+    organizers = st.multiselect(
+        'Who organizes the ride',
+        organizers_list
+        )
+    organizers = [f"{i} ({st.secrets['organizers'][i]})" for i in organizers]
+    organizers_str = ', '.join(sorted(organizers))
 
+    ride_level = st.radio('Choose your ride level:',['☕️', '🦵','🔥'], index=1)
+    ride_speed = st.slider('What is the expected average speed in km/h?', min_value=20, max_value=32, value= 26)
 
-ride_level = st.radio('Choose your ride level:',['☕️', '🦵','🔥'], index=1)
-ride_speed = st.slider('What is the expected average speed in km/h?', min_value=20, max_value=32, value= 26)
+    add_weather_disclaimer = st.checkbox('Weather disclaimer ⛈️')
+    add_race_disclaimer = st.checkbox('Add race disclaimer 🚴💨')
 
-add_weather_disclaimer = st.checkbox('Weather disclaimer ⛈️')
-add_race_disclaimer = st.checkbox('Add race disclaimer 🚴💨')
+    link_input = st.text_input('Paste URL of public Strava route:')
+    s = re.search(r"^https?://[\w\d]+\.?strava.com/routes/(\d+)", link_input)
 
-# uploaded_files = st.file_uploader("Choose a gpx file", accept_multiple_files=False)
-# if uploaded_files is not None:
-#     gpx = gpxpy.parse(uploaded_files)
+    submitted = st.form_submit_button("Submit")
 
-
-link_input = st.text_input('Paste URL of public Strava route:')
-s = re.search(r"^https?://[\w\d]+\.?strava.com/routes/(\d+)", link_input)
-if s:
-    route_id = s.group(1)
-    r = requests.get(f'https://us-central1-my-playground-1f314.cloudfunctions.net/getRoute?id={route_id}')
-    gpx = gpxpy.parse(r.text)
+if submitted:
+    # route_id = s.group(1)
+    # r = requests.get(st.secrets['get_route_url'] + route_id)
+    # gpx = gpxpy.parse(r.text)
+    gpx = get_route(s.group(1))
 
     route_title = gpx.name
     route_distance = int(np.ceil(gpx.length_3d()/1000))
@@ -112,7 +119,7 @@ if s:
     if add_race_disclaimer: text += race_disclaimer
     if add_weather_disclaimer: text += weather_disclaimer
     text += 'Thanks & see you on the road 👋'
-    
+
     st.header('Output for copy\'n\'paste to WhatsApp')
     st.code(text, language=None)
 
