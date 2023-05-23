@@ -10,6 +10,8 @@ from haversine import haversine, Unit
 import datetime
 import pytz
 
+local_tz = pytz.timezone('Europe/Berlin')
+
 months = {
     1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
     7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Okt', 11: 'Nov', 12: 'Dec'
@@ -35,14 +37,38 @@ weather_disclaimer = "⛈️ Watch the forecast ⛈️\nIf the weather forecast 
 race_disclaimer = "⚠️ No regular ride ⚠️\nThis is not a regular ride. Participation in the race is at your own risk, ZüRides will not take any responsibility, we just ride to the start and back to Zürich together. If you are unsure or have any questions, please get in touch with the organizers.\n\n"
 submission_form_link = 'https://docs.google.com/forms/d/e/1FAIpQLScgY8tIqtNKiD6sRei6LXCvFQL3HSFO481xiV9mzF5-85USiw/viewform'
 
-@st.cache_data
 def get_route(route_id: str) -> gpxpy.gpx.GPX:
     _r = requests.get(st.secrets['get_route_url'] + route_id)
     return gpxpy.parse(_r.text)
 
 
-# def preprocess_route(gpx: gpxpy.gpx.GPX) -> dict:
-#     return {}
+def preprocess_route(gpx: gpxpy.gpx.GPX) -> dict:
+    return {}
+
+
+def get_sunset_time(date: datetime.date, loc= {'lat': 47.3769, 'lon': 8.5417}) -> datetime.datetime:
+    # Default location: Zurich
+    _date_str = date.strftime("%Y-%m-%d")
+    _sunset_request = requests.get(f'https://api.sunrisesunset.io/json?timezone=UTC&lat={loc["lat"]}&lng={loc["lon"]}&date={_date_str}')
+
+    if _sunset_request.status_code == 200:
+        _sunset_json = _sunset_request.json()
+        _sunset_time_str = _sunset_json['results']['sunset']
+        _sunset_datetime = datetime.datetime.strptime(
+            f'{_date_str} {_sunset_time_str}', '%Y-%m-%d %I:%M:%S %p'
+        ).replace(
+            tzinfo=pytz.timezone('UTC')
+        ).astimezone(
+            pytz.timezone('CET')
+        )
+    else:
+        print('Bad request! Using default sunset time 8:00 PM')
+        _sunset_datetime = datetime.datetime(
+            date.year, date.month, date.day, 
+            20, 00, tzinfo=pytz.timezone('CET')
+            )
+
+    return _sunset_datetime
 
 
 st.title(f'Post creator for [ZüRides]({submission_form_link})')
@@ -50,7 +76,7 @@ st.header('Input')
 with st.form('Input'):
 
     default_datetime = datetime.datetime.now() + datetime.timedelta(days=1)
-    default_date = default_datetime.astimezone(pytz.timezone('CET')).date()
+    default_date = default_datetime.astimezone(local_tz).date()
 
     d = st.date_input(
         "What date does the ride take place?", default_date
@@ -72,11 +98,14 @@ with st.form('Input'):
     organizers = [f"{i} ({st.secrets['organizers'][i]})" for i in organizers]
     organizers_str = ', '.join(sorted(organizers))
 
-    ride_level = st.radio('Choose your ride level:',['☕️', '🦵','🔥'], index=1)
+    ride_level = st.radio('Choose your ride level:',['☕️', '🦵','🔥'], index=1, horizontal=True)
     ride_speed = st.slider('What is the expected average speed in km/h?', min_value=20, max_value=32, value= 26)
 
-    add_weather_disclaimer = st.checkbox('Weather disclaimer ⛈️')
-    add_race_disclaimer = st.checkbox('Add race disclaimer 🚴💨')
+    cb_col1, cb_col2 = st.columns(2)
+    with cb_col1:
+        add_weather_disclaimer = st.checkbox('Weather disclaimer ⛈️')
+    with cb_col2:
+        add_race_disclaimer = st.checkbox('Race disclaimer 🚴💨')
 
     link_input = st.text_input('Paste URL of public Strava route:')
     s = re.search(r"^https?://[\w\d]+\.?strava.com/routes/(\d+)", link_input)
@@ -106,9 +135,11 @@ if submitted:
 
     text = f'*— {weekday}, {month_str} {day} —*\n\nSign up here:  https://registration.zürides.ch/\nSelect the ride you prefer, make sure you received the confirmation email, and please use the link in that email if you want to remove or change your registration.\n\n'
     return_time = \
-        datetime.datetime(d.year, d.month, d.day, meeting_time.hour, meeting_time.minute) + \
+        local_tz.localize(
+            datetime.datetime(d.year, d.month, d.day, meeting_time.hour, meeting_time.minute)
+        ) + \
         datetime.timedelta(hours=route_distance/ride_speed * 1.2 + 0.3)
-    sunset_time = datetime.datetime(d.year, d.month, d.day, 20, 00)
+    sunset_time = get_sunset_time(d) # datetime.datetime(d.year, d.month, d.day, 20, 00)
     if  return_time > sunset_time: text += light_warning
     text += f'*{route_title}*\n'
     text += f'{organizers_str}\n'
