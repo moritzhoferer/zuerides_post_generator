@@ -11,6 +11,7 @@ import datetime
 import pytz
 
 local_tz = pytz.timezone('Europe/Berlin')
+utc_tz = pytz.timezone('UTC')
 
 months = {
     1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
@@ -27,7 +28,8 @@ meeting_points = {
     'Frohburg-/Letzistrasse': (47.39252, 8.55045), 
     'Thiwa\'s Cafe, Triemli': (47.36783, 8.49466), 
     'OIL! petrol station, Fronwaldstrasse': (47.41510, 8.51845),
-    'Graveyard Witikon': (47.36144, 8.60253)
+    'Graveyard Witikon': (47.36144, 8.60253),
+    'Train station Tiefenbrunnen': (47.35007, 8.56122)
 }
 
 organizers_list = list(st.secrets['organizers'].keys())
@@ -37,13 +39,31 @@ weather_disclaimer = "⛈️ Watch the forecast ⛈️\nIf the weather forecast 
 race_disclaimer = "⚠️ No regular ride ⚠️\nThis is not a regular ride. Participation in the race is at your own risk, ZüRides will not take any responsibility, we just ride to the start and back to Zürich together. If you are unsure or have any questions, please get in touch with the organizers.\n\n"
 submission_form_link = 'https://docs.google.com/forms/d/e/1FAIpQLScgY8tIqtNKiD6sRei6LXCvFQL3HSFO481xiV9mzF5-85USiw/viewform'
 
+
 def get_route(route_id: str) -> gpxpy.gpx.GPX:
     _r = requests.get(st.secrets['get_route_url'] + route_id)
-    return gpxpy.parse(_r.text)
+    if _r.status_code == 200:
+        return gpxpy.parse(_r.text)
+    else:
+        raise _r.raise_for_status()
+    
+
+def get_distance(start: dict, end: dict) -> any:
+    return haversine(
+        (start['lat'], start['lon']),
+        (end['lat'], end['lon']),
+        unit=Unit.METERS
+    )
 
 
-def preprocess_route(gpx: gpxpy.gpx.GPX) -> dict:
-    return {}
+def get_closest_meeting_point(point: dict) -> str:
+    _dist_to_mp = [haversine(mp, point, unit=Unit.METERS) for _, mp in meeting_points.items()]
+    _closest_index = np.argmin(_dist_to_mp)
+    return list(meeting_points.keys())[_closest_index] 
+
+
+def preprocess_route(gpx: gpxpy.gpx.GPX) -> list:
+    return []
 
 
 def get_sunset_time(date: datetime.date, loc= {'lat': 47.3769, 'lon': 8.5417}) -> datetime.datetime:
@@ -57,9 +77,9 @@ def get_sunset_time(date: datetime.date, loc= {'lat': 47.3769, 'lon': 8.5417}) -
         _sunset_datetime = datetime.datetime.strptime(
             f'{_date_str} {_sunset_time_str}', '%Y-%m-%d %I:%M:%S %p'
         ).replace(
-            tzinfo=pytz.timezone('UTC')
+            tzinfo=utc_tz #pytz.timezone('UTC')
         ).astimezone(
-            pytz.timezone('CET')
+            local_tz #pytz.timezone('CET')
         )
     else:
         print('Bad request! Using default sunset time 8:00 PM')
@@ -74,7 +94,6 @@ def get_sunset_time(date: datetime.date, loc= {'lat': 47.3769, 'lon': 8.5417}) -
 st.title(f'Post creator for [ZüRides]({submission_form_link})')
 st.header('Input')
 with st.form('Input'):
-
     default_datetime = datetime.datetime.now() + datetime.timedelta(days=1)
     default_date = default_datetime.astimezone(local_tz).date()
 
@@ -99,6 +118,7 @@ with st.form('Input'):
     organizers_str = ', '.join(sorted(organizers))
 
     ride_level = st.radio('Choose your ride level:',['☕️', '🦵','🔥'], index=1, horizontal=True)
+    # TODO Replace the following line with an estimate function
     ride_speed = st.slider('What is the expected average speed in km/h?', min_value=20, max_value=32, value= 26)
 
     cb_col1, cb_col2 = st.columns(2)
@@ -108,19 +128,20 @@ with st.form('Input'):
         add_race_disclaimer = st.checkbox('Race disclaimer 🚴💨')
 
     link_input = st.text_input('Paste URL of public Strava route:')
-    s = re.search(r"^https?://[\w\d]+\.?strava.com/routes/(\d+)", link_input)
+    s = re.search(r"^https?://[\w\d]+\.?strava.com/routes/(\d+)", link_input.strip())
 
-    submitted = st.form_submit_button("Submit")
+    submitted = st.form_submit_button("Create post")
 
 if submitted:
-    # route_id = s.group(1)
-    # r = requests.get(st.secrets['get_route_url'] + route_id)
-    # gpx = gpxpy.parse(r.text)
+    # Load gpx file from Strava
     gpx = get_route(s.group(1))
 
-    route_title = gpx.name
+    route_title = gpx.name.strip()
     route_distance = int(np.ceil(gpx.length_3d()/1000))
-    points = [(point.latitude, point.longitude) for track in gpx.tracks for segment in track.segments for point in segment.points]
+    points = [
+        (point.latitude, point.longitude) 
+        for track in gpx.tracks for segment in track.segments for point in segment.points
+    ]
     if gpx.has_elevations:
         elevations = [point.elevation for track in gpx.tracks for segment in track.segments for point in segment.points]
         diffs = np.diff(elevations)
@@ -132,7 +153,6 @@ if submitted:
     closest_index = np.argmin(dist_to_mp)
     meeting_point = list(meeting_points.keys())[closest_index]
     
-
     text = f'*— {weekday}, {month_str} {day} —*\n\nSign up here:  https://registration.zürides.ch/\nSelect the ride you prefer, make sure you received the confirmation email, and please use the link in that email if you want to remove or change your registration.\n\n'
     return_time = \
         local_tz.localize(
@@ -146,7 +166,10 @@ if submitted:
     text += f'*Route*: {route_distance}km, {route_elevation_gain}m, {gpx.link}\n'
     text += f'*Ride level*: {ride_level}, ~{ride_speed}km/h\n'
     text += f'*Meeting time & place*: {meeting_time_str} at {meeting_point}\n'
-    text += f'{gpx.description}\n\n'
+    if type(gpx.description) == str: 
+        text += f'{gpx.description.strip()}\n\n'
+    else:
+        text += '\n'
     if add_race_disclaimer: text += race_disclaimer
     if add_weather_disclaimer: text += weather_disclaimer
     text += 'Thanks & see you on the road 👋'
