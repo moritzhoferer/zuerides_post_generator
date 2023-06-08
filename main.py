@@ -68,6 +68,7 @@ def preprocess_route(gpx: gpxpy.gpx.GPX) -> list:
 
 def get_sunset_time(date: datetime.date, loc= {'lat': 47.3769, 'lon': 8.5417}) -> datetime.datetime:
     # Default location: Zurich
+    # API: https://sunrisesunset.io/api/
     _date_str = date.strftime("%Y-%m-%d")
     _sunset_request = requests.get(f'https://api.sunrisesunset.io/json?timezone=UTC&lat={loc["lat"]}&lng={loc["lon"]}&date={_date_str}')
 
