@@ -95,6 +95,14 @@ def get_sunset_time(date: datetime.date, loc= {'lat': 47.3769, 'lon': 8.5417}) -
 st.title(f'Post creator for [ZüRides]({submission_form_link})')
 st.header('Input')
 with st.form('Input'):
+    cb_col1, cb_col2, cb_col3 = st.columns(3)
+    with cb_col1:
+        add_weather_disclaimer = st.checkbox('Weather disclaimer ⛈️')
+    with cb_col2:
+        add_race_disclaimer = st.checkbox('Race disclaimer 🚴💨')
+    with cb_col3:
+        is_mtb_ride = st.checkbox('Gravel/XC ride 🚵')
+
     default_datetime = datetime.datetime.now() + datetime.timedelta(days=1)
     default_date = default_datetime.astimezone(local_tz).date()
 
@@ -122,11 +130,6 @@ with st.form('Input'):
     # TODO Replace the following line with an estimate function
     ride_speed = st.slider('What is the expected average speed in km/h?', min_value=20, max_value=32, value= 26)
 
-    cb_col1, cb_col2 = st.columns(2)
-    with cb_col1:
-        add_weather_disclaimer = st.checkbox('Weather disclaimer ⛈️')
-    with cb_col2:
-        add_race_disclaimer = st.checkbox('Race disclaimer 🚴💨')
 
     link_input = st.text_input('Paste URL of public Strava route:')
     s = re.search(r"^https?://[\w\d]+\.?strava.com/routes/(\d+)", link_input.strip())
@@ -138,6 +141,10 @@ if submitted:
     gpx = get_route(s.group(1))
 
     route_title = gpx.name.strip()
+    if is_mtb_ride:
+        route_title += " - Gravel/CX ride"
+    
+    
     route_distance = int(np.ceil(gpx.length_3d()/1000))
     points = [
         (point.latitude, point.longitude) 
@@ -154,7 +161,7 @@ if submitted:
     closest_index = np.argmin(dist_to_mp)
     meeting_point = list(meeting_points.keys())[closest_index]
     
-    text = f'*— {weekday}, {month_str} {day} —*\n\nSign up here:  https://registration.zürides.ch/\nSelect the ride you prefer, make sure you received the confirmation email, and please use the link in that email if you want to remove or change your registration.\n\n'
+    text = f'*— {weekday}, {month_str} {day} —*\n\nSign up here:  registration.zürides.ch/\nSelect the ride you prefer, make sure you received the confirmation email, and please use the link in that email if you want to remove or change your registration.\n\n'
     return_time = \
         local_tz.localize(
             datetime.datetime(d.year, d.month, d.day, meeting_time.hour, meeting_time.minute)
@@ -164,7 +171,8 @@ if submitted:
     if  return_time > sunset_time: text += light_warning
     text += f'*{route_title}*\n'
     text += f'{organizers_str}\n'
-    text += f'*Route*: {route_distance}km, {route_elevation_gain}m, {gpx.link}\n'
+    text += f'*Route*: {route_distance}km, {route_elevation_gain}m, strava.com/routes/{s.group(1)}\n' # gpx.link
+    if is_mtb_ride: ride_level = '⛰️'
     text += f'*Ride level*: {ride_level}, ~{ride_speed}km/h\n'
     text += f'*Meeting time & place*: {meeting_time_str} at {meeting_point}\n'
     if type(gpx.description) == str: 
@@ -173,12 +181,14 @@ if submitted:
         text += '\n'
     if add_race_disclaimer: text += race_disclaimer
     if add_weather_disclaimer: text += weather_disclaimer
-    text += 'Thanks & see you on the road 👋'
+    if is_mtb_ride:
+        text += 'Thanks & see you on the dirt! 🫎'
+    else:
+        text += 'Thanks & see you on the road 👋'
 
     st.header('Output for copy\'n\'paste to WhatsApp')
     st.code(text, language=None)
 
     text_short = f'{route_title} @ {meeting_point}'
-    st.header('Output for copy\'n\'paste to submission form')
+    st.header(f'Output for copy\'n\'paste to [submission form]({submission_form_link})')
     st.code(text_short, language=None)
-
