@@ -11,9 +11,9 @@ This tool easily creates posts for rides with the formatting for WhatsApp.
 ## TODO
 
 * [ ] Automatic speed prediction based on route and ride level
-* [ ] Bring light warning adjusted to sunset time
-* [ ] Extend list of meeting points
 * [ ] Button to submit ride to Google spreadsheet
+* [x] Bring light warning adjusted to sunset time
+* [x] Extend list of meeting points
 * [x] Automatically add guide phone numbers
 * [x] Use strava links for route import
 * [x] Race disclaimer checkbox
