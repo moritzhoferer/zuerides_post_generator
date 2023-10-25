@@ -14,13 +14,12 @@ local_tz = pytz.timezone('Europe/Berlin')
 utc_tz = pytz.timezone('UTC')
 
 months = {
-    1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
-    7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Okt', 11: 'Nov', 12: 'Dec'
+    1: 'January', 2: 'February', 3: 'March', 4: 'April', 5: 'May', 6: 'June',
+    7: 'July', 8: 'August', 9: 'September', 10: 'October', 11: 'November', 12: 'December'
 }
 
 weekdays = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 
-    'Friday', 'Saturday', 'Sunday'
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
 ]
 
 meeting_points = {
@@ -109,14 +108,14 @@ with st.form('Input'):
     d = st.date_input(
         "What date does the ride take place?", default_date
     )
-    month = d.month
-    month_str = months[month]
+    month_num = d.month
+    month_name = months[month_num]
     day = d.day
-    weekday = weekdays[d.weekday()]
+    weekday_name = weekdays[d.weekday()]
 
     meeting_time = st.time_input(
         'What time do we start?', 
-        datetime.time(10, 00) if weekday in ['Saturday', 'Sunday'] else datetime.time(18, 00))
+        datetime.time(10, 00) if weekday_name in ['Saturday', 'Sunday'] else datetime.time(18, 00))
     meeting_time_str = meeting_time.strftime('%H:%M')
 
     organizers = st.multiselect(
@@ -161,7 +160,7 @@ if submitted:
     closest_index = np.argmin(dist_to_mp)
     meeting_point = list(meeting_points.keys())[closest_index]
     
-    text = f'*— {weekday}, {month_str} {day} —*\n\nSign up here:  registration.zürides.ch/\nSelect the ride you prefer, make sure you received the confirmation email, and please use the link in that email if you want to remove or change your registration.\n\n'
+    text = f'*— {weekday_name}, {month_name} {day} —*\n\nSign up here:  registration.zürides.ch\nSelect the ride you prefer, make sure you received the confirmation email, and please use the link in that email if you want to remove or change your registration.\n\n'
     return_time = \
         local_tz.localize(
             datetime.datetime(d.year, d.month, d.day, meeting_time.hour, meeting_time.minute)
