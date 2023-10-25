@@ -108,14 +108,14 @@ with st.form('Input'):
     d = st.date_input(
         "What date does the ride take place?", default_date
     )
-    month = d.month
-    month_str = months[month]
+    month_num = d.month
+    month_name = months[month_num]
     day = d.day
-    weekday = weekdays[d.weekday()]
+    weekday_name = weekdays[d.weekday()]
 
     meeting_time = st.time_input(
         'What time do we start?', 
-        datetime.time(10, 00) if weekday in ['Saturday', 'Sunday'] else datetime.time(18, 00))
+        datetime.time(10, 00) if weekday_name in ['Saturday', 'Sunday'] else datetime.time(18, 00))
     meeting_time_str = meeting_time.strftime('%H:%M')
 
     organizers = st.multiselect(
@@ -160,7 +160,7 @@ if submitted:
     closest_index = np.argmin(dist_to_mp)
     meeting_point = list(meeting_points.keys())[closest_index]
     
-    text = f'*— {weekday}, {month_str} {day} —*\n\nSign up here:  registration.zürides.ch\nSelect the ride you prefer, make sure you received the confirmation email, and please use the link in that email if you want to remove or change your registration.\n\n'
+    text = f'*— {weekday_name}, {month_name} {day} —*\n\nSign up here:  registration.zürides.ch\nSelect the ride you prefer, make sure you received the confirmation email, and please use the link in that email if you want to remove or change your registration.\n\n'
     return_time = \
         local_tz.localize(
             datetime.datetime(d.year, d.month, d.day, meeting_time.hour, meeting_time.minute)
