@@ -128,6 +128,7 @@ with st.form('Input'):
     ride_level = st.radio('Choose your ride level:',['☕️', '🦵','🔥'], index=1, horizontal=True)
     # TODO Replace the following line with an estimate function
     ride_speed = st.slider('What is the expected average speed in km/h?', min_value=20, max_value=32, value= 26)
+    st.caption("For Gravel/XC rides, the 10km/h will be substracted from the selected speed")
 
 
     link_input = st.text_input('Paste URL of public Strava route:')
@@ -142,6 +143,7 @@ if submitted:
     route_title = gpx.name.strip()
     if is_mtb_ride:
         route_title += " - Gravel/CX ride"
+        ride_speed = ride_speed -10
     
     
     route_distance = int(np.ceil(gpx.length_3d()/1000))
