@@ -9,20 +9,37 @@ import gpxpy.gpx
 from haversine import haversine, Unit
 import datetime
 import pytz
+from typing import Tuple, Dict, List, Any
 
-local_tz = pytz.timezone('Europe/Berlin')
-utc_tz = pytz.timezone('UTC')
+# Constants for timezones and strings
+LOCAL_TZ = pytz.timezone('Europe/Berlin')
+UTC_TZ = pytz.timezone('UTC')
 
-months = {
+LIGHT_WARNING = '🚨 Do not forget to bring lights! 🚨\n\n'
+WEATHER_DISCLAIMER = "⛈️ Watch the forecast ⛈️\nIf the weather forecast gets worse, we cancel the ride.\n\n"
+RACE_DISCLAIMER = "⚠️ No regular ride ⚠️\nThis is not a regular ride. Participation in the race is at your own risk, ZüRides will not take any responsibility, we just ride to the start and back to Zürich together. If you are unsure or have any questions, please get in touch with the organizers.\n\n"
+SUBMISSION_FORM_LINK = 'https://docs.google.com/forms/d/e/1FAIpQLScgY8tIqtNKiD6sRei6LXCvFQL3HSFO481xiV9mzF5-85USiw/viewform'
+RIDE_LEVELS = ['☕️', '🦵', '🔥']
+RANDOM_RIDE_TITELS = [
+    "Velodyssey", "Spokes & Scenery", "The Winding Way", "Tarmac Tales",
+    "Ride the Horizon", "Two Wheels, One Path", "Echoes of the Road", "The Long Arc",
+    "Serpentine Symphony", "Chasing the Curve", "Ribbons of Asphalt", "Wanderlust on Wheels",
+    "The Hidden Route", "Through Valleys & Vistas", "Saddle Stories", "Where the Road Unfolds",
+    "The Turning Point", "Rolling Through Time", "Lost in the Ride", "Shadows & Switchbacks"
+]
+
+# Dictionaries for months and weekdays
+MONTHS = {
     1: 'January', 2: 'February', 3: 'March', 4: 'April', 5: 'May', 6: 'June',
     7: 'July', 8: 'August', 9: 'September', 10: 'October', 11: 'November', 12: 'December'
 }
 
-weekdays = [
+WEEKDAYS = [
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
 ]
 
-meeting_points = {
+# Predefined meeting points with coordinates
+MEETING_POINTS = {
     'Fork & Bottle parking lot': (47.35262, 8.52454),
     'Frohburg-/Letzistrasse': (47.39252, 8.55045), 
     'Thiwa\'s Cafe, Triemli': (47.36783, 8.49466), 
@@ -32,11 +49,6 @@ meeting_points = {
 }
 
 organizers_list = list(st.secrets['organizers'].keys())
-
-light_warning = '🚨 Do not forget to bring lights! 🚨\n\n'
-weather_disclaimer = "⛈️ Watch the forecast ⛈️\nIf the weather forecast gets worse, we cancel the ride.\n\n"
-race_disclaimer = "⚠️ No regular ride ⚠️\nThis is not a regular ride. Participation in the race is at your own risk, ZüRides will not take any responsibility, we just ride to the start and back to Zürich together. If you are unsure or have any questions, please get in touch with the organizers.\n\n"
-submission_form_link = 'https://docs.google.com/forms/d/e/1FAIpQLScgY8tIqtNKiD6sRei6LXCvFQL3HSFO481xiV9mzF5-85USiw/viewform'
 
 
 def get_route(route_id: str) -> gpxpy.gpx.GPX:
@@ -56,9 +68,9 @@ def get_distance(start: dict, end: dict) -> any:
 
 
 def get_closest_meeting_point(point: dict) -> str:
-    _dist_to_mp = [haversine(mp, point, unit=Unit.METERS) for _, mp in meeting_points.items()]
+    _dist_to_mp = [haversine(mp, point, unit=Unit.METERS) for _, mp in MEETING_POINTS.items()]
     _closest_index = np.argmin(_dist_to_mp)
-    return list(meeting_points.keys())[_closest_index] 
+    return list(MEETING_POINTS.keys())[_closest_index] 
 
 
 def preprocess_route(gpx: gpxpy.gpx.GPX) -> list:
@@ -77,9 +89,9 @@ def get_sunset_time(date: datetime.date, loc= {'lat': 47.3769, 'lon': 8.5417}) -
         _sunset_datetime = datetime.datetime.strptime(
             f'{_date_str} {_sunset_time_str}', '%Y-%m-%d %I:%M:%S %p'
         ).replace(
-            tzinfo=utc_tz #pytz.timezone('UTC')
+            tzinfo=UTC_TZ #pytz.timezone('UTC')
         ).astimezone(
-            local_tz #pytz.timezone('CET')
+            LOCAL_TZ #pytz.timezone('CET')
         )
     else:
         print('Bad request! Using default sunset time 8:00 PM')
@@ -91,7 +103,7 @@ def get_sunset_time(date: datetime.date, loc= {'lat': 47.3769, 'lon': 8.5417}) -
     return _sunset_datetime
 
 
-st.title(f'Post creator for [ZüRides]({submission_form_link})')
+st.title(f'Post creator for [ZüRides]({SUBMISSION_FORM_LINK})')
 st.header('Input')
 with st.form('Input'):
     cb_col1, cb_col2, cb_col3 = st.columns(3)
@@ -103,19 +115,20 @@ with st.form('Input'):
         is_mtb_ride = st.checkbox('Gravel/XC ride 🚵')
 
     default_datetime = datetime.datetime.now() + datetime.timedelta(days=1)
-    default_date = default_datetime.astimezone(local_tz).date()
-
-    d = st.date_input(
-        "What date does the ride take place?", default_date
-    )
+    default_date = default_datetime.astimezone(LOCAL_TZ).date()
+    r_col1, r_col2 = st.columns(2)
+    with r_col1:
+        d = st.date_input(
+            "What date does the ride take place?", default_date
+        )
     month_num = d.month
-    month_name = months[month_num]
+    month_name = MONTHS[month_num]
     day = d.day
-    weekday_name = weekdays[d.weekday()]
-
-    meeting_time = st.time_input(
-        'What time do we start?', 
-        datetime.time(10, 00) if weekday_name in ['Saturday', 'Sunday'] else datetime.time(18, 00))
+    weekday_name = WEEKDAYS[d.weekday()]
+    with r_col2:
+        meeting_time = st.time_input(
+            'What time do we start?', 
+            datetime.time(10, 00) if weekday_name in ['Saturday', 'Sunday'] else datetime.time(18, 00))
     meeting_time_str = meeting_time.strftime('%H:%M')
 
     organizers = st.multiselect(
@@ -123,9 +136,9 @@ with st.form('Input'):
         organizers_list
         )
     organizers = [f"{i} ({st.secrets['organizers'][i]})" for i in organizers]
-    organizers_str = ', '.join(sorted(organizers))
+    organizers_str = ', '.join(sorted(organizers)) if organizers else '⚠️_unsupervised group ride_⚠️'
 
-    ride_level = st.radio('Choose your ride level:',['☕️', '🦵','🔥'], index=1, horizontal=True)
+    ride_level = st.radio('Choose your ride level:',RIDE_LEVELS, index=1, horizontal=True)
     # TODO Replace the following line with an estimate function
     ride_speed = st.slider('What is the expected average speed in km/h?', min_value=20, max_value=32, value= 26)
     st.caption("For Gravel/XC rides, the 10km/h will be substracted from the selected speed")
@@ -141,6 +154,9 @@ if submitted:
     gpx = get_route(s.group(1))
 
     route_title = gpx.name.strip()
+    if not re.search('[a-zA-Z]{3,}', route_title):
+        route_title = np.random.choice(RANDOM_RIDE_TITELS)
+
     if is_mtb_ride:
         route_title += " - Gravel/CX ride"
         ride_speed = ride_speed -10
@@ -158,18 +174,18 @@ if submitted:
     else:
         route_elevation_gain = 'n/a '
 
-    dist_to_mp = [haversine(mp, points[0], unit=Unit.METERS) for _, mp in meeting_points.items()]
+    dist_to_mp = [haversine(mp, points[0], unit=Unit.METERS) for _, mp in MEETING_POINTS.items()]
     closest_index = np.argmin(dist_to_mp)
-    meeting_point = list(meeting_points.keys())[closest_index]
+    meeting_point = list(MEETING_POINTS.keys())[closest_index]
     
     text = f'*— {weekday_name}, {month_name} {day} —*\n\nSign up here:  registration.zürides.ch\nSelect the ride you prefer, make sure you received the confirmation email, and please use the link in that email if you want to remove or change your registration.\n\n'
     return_time = \
-        local_tz.localize(
+        LOCAL_TZ.localize(
             datetime.datetime(d.year, d.month, d.day, meeting_time.hour, meeting_time.minute)
         ) + \
         datetime.timedelta(hours=route_distance/ride_speed * 1.2 + 0.3)
     sunset_time = get_sunset_time(d) # datetime.datetime(d.year, d.month, d.day, 20, 00)
-    if  return_time > sunset_time: text += light_warning
+    if  return_time > sunset_time: text += LIGHT_WARNING
     text += f'*{route_title}*\n'
     text += f'{organizers_str}\n'
     text += f'*Route*: {route_distance}km, {route_elevation_gain}m, strava.com/routes/{s.group(1)}\n' # gpx.link
@@ -180,8 +196,8 @@ if submitted:
         text += f'{gpx.description.strip()}\n\n'
     else:
         text += '\n'
-    if add_race_disclaimer: text += race_disclaimer
-    if add_weather_disclaimer: text += weather_disclaimer
+    if add_race_disclaimer: text += RACE_DISCLAIMER
+    if add_weather_disclaimer: text += WEATHER_DISCLAIMER
     if is_mtb_ride:
         text += 'Thanks & see you on the dirt! 🫎'
     else:
@@ -191,5 +207,5 @@ if submitted:
     st.code(text, language=None)
 
     text_short = f'{route_title} @ {meeting_point}'
-    st.header(f'Output for copy\'n\'paste to [submission form]({submission_form_link})')
+    st.header(f'Output for copy\'n\'paste to [submission form]({SUBMISSION_FORM_LINK})')
     st.code(text_short, language=None)
